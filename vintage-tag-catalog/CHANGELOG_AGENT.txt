@@ -1,0 +1,11 @@
+2026-02-14
+- Initialized project scaffold for vintage-tag-catalog.
+- Added Typer CLI with commands: collect, fetch-images, pick-images, extract, date, export.
+- Implemented eBay auth + browse API clients.
+- Implemented SQLite SQLAlchemy schema and repository helpers.
+- Implemented pipeline steps for collect/download/select/extract/infer/resolve/export.
+- Added OpenCV-based tag and hero image ranking heuristics and stitch detector.
+- Added EasyOCR-based tag OCR module.
+- Added unit tests + fixtures for date extraction, resolver, and image rankers.
+- Added Dockerfile, devcontainer config, docker-compose, Makefile, env example.
+- Added project README with setup and usage instructions.
