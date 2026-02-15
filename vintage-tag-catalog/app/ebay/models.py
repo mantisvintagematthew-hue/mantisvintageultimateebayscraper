@@ -7,3 +7,8 @@ from dataclasses import dataclass
 class EbaySearchResult:
     items: list[dict]
     raw: dict
+
+
+@dataclass(slots=True)
+class EbayItemDetailResult:
+    item: dict

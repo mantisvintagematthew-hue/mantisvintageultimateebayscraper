@@ -15,3 +15,10 @@
 - Improved image URL extraction, URL dedupe, extension inference, and HTTP error handling in image downloads.
 - Updated extraction pipeline to parse listing specifics (`localizedAspects`) from raw JSON and feed them into declared date extraction.
 - Expanded tests with offline collection test and specifics-based declared-date parsing test.
+2026-02-15 (production readiness pass)
+- Added eBay item detail enrichment during collect (`get_item`) to persist richer payloads than summary-only records.
+- Added retry/backoff behavior for transient eBay Browse API failures (429 and 5xx).
+- Added `vtc doctor` preflight command for direct tester readiness checks (db + credentials + data dir).
+- Switched schema/repo timestamp defaults to timezone-aware UTC helper to avoid deprecated naive utcnow usage.
+- Added tests for collect enrichment behavior with/without detail fetch.
+- Expanded README/Makefile with direct API test flow and doctor command.

@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 
+from dotenv import load_dotenv
+
 
 @dataclass(slots=True)
 class Settings:
@@ -17,6 +19,7 @@ class Settings:
 
 def get_settings() -> Settings:
     root = Path(__file__).resolve().parents[1]
+    load_dotenv(root / ".env", override=False)
     data_dir = Path(os.getenv("VTC_DATA_DIR", root / "data"))
     data_dir.mkdir(parents=True, exist_ok=True)
     return Settings(

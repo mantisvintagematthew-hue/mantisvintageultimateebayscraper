@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy import select
 
 from app.db.schema import (
+    utcnow,
     DateInference,
     DateResolution,
     Extraction,
@@ -37,13 +38,13 @@ class Repo:
         else:
             listing.title = payload.get("title", listing.title)
             listing.description = payload.get("shortDescription") or payload.get("description") or listing.description
-            listing.updated_at = datetime.utcnow()
+            listing.updated_at = utcnow()
             listing.raw_json_path = raw_json_path
         self.session.flush()
         return listing
 
     def recent_listings(self, since_hours: int) -> list[Listing]:
-        cutoff = datetime.utcnow() - timedelta(hours=since_hours)
+        cutoff = utcnow() - timedelta(hours=since_hours)
         stmt = select(Listing).where(Listing.created_at >= cutoff)
         return list(self.session.scalars(stmt))
 

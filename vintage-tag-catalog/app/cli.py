@@ -7,7 +7,7 @@ import typer
 from app.config import get_settings
 from app.db.migrate import migrate
 from app.db.repo import Repo
-from app.db.schema import make_session_factory
+from app.db.schema import make_engine, make_session_factory
 from app.ebay.auth import EbayAuthClient
 from app.ebay.browse import EbayBrowseClient
 from app.pipeline.collect import collect_from_fixture, collect_search
@@ -25,11 +25,38 @@ def init_db() -> None:
     migrate(settings.database_url)
 
 
+@app.command("doctor")
+def doctor() -> None:
+    """Basic readiness checks for local test users before running pipeline."""
+    settings = get_settings()
+    checks: list[tuple[str, bool, str]] = []
+    checks.append(("data_dir_exists", settings.data_dir.exists(), str(settings.data_dir)))
+    try:
+        engine = make_engine(settings.database_url)
+        with engine.connect() as conn:
+            conn.exec_driver_sql("SELECT 1")
+        checks.append(("database_connectivity", True, settings.database_url))
+    except Exception as exc:
+        checks.append(("database_connectivity", False, str(exc)))
+
+    has_creds = bool(settings.ebay_client_id and settings.ebay_client_secret)
+    checks.append(("ebay_credentials_present", has_creds, "set EBAY_CLIENT_ID/EBAY_CLIENT_SECRET"))
+
+    failures = [c for c in checks if not c[1]]
+    for name, ok, detail in checks:
+        marker = "✅" if ok else "❌"
+        typer.echo(f"{marker} {name}: {detail}")
+
+    if failures:
+        raise typer.Exit(code=1)
+
+
 @app.command("collect")
 def collect(
     query: str = typer.Option("vintage single stitch t shirt", help="Search query"),
     limit: int = typer.Option(200, help="Max listings to collect"),
     fixture: Path | None = typer.Option(None, exists=True, dir_okay=False, help="Offline fixture JSON path"),
+    enrich_details: bool = typer.Option(True, help="Fetch detailed item payloads via Browse item endpoint"),
 ) -> None:
     settings = get_settings()
     sf = make_session_factory(settings.database_url)
@@ -39,9 +66,11 @@ def collect(
             count = collect_from_fixture(repo, fixture, settings.data_dir)
             source = f"fixture={fixture}"
         else:
+            if not settings.ebay_client_id or not settings.ebay_client_secret:
+                raise typer.BadParameter("Missing eBay credentials. Set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET.")
             auth = EbayAuthClient(settings.ebay_client_id, settings.ebay_client_secret)
             browse = EbayBrowseClient(auth.token(), settings.ebay_marketplace)
-            count = collect_search(repo, browse, query, limit, settings.data_dir)
+            count = collect_search(repo, browse, query, limit, settings.data_dir, enrich_details=enrich_details)
             source = "ebay_api"
         s.commit()
     typer.echo(f"Collected {count} listings from {source}")

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
@@ -14,6 +14,10 @@ from sqlalchemy import (
     create_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class Base(DeclarativeBase):
@@ -33,8 +37,8 @@ class Listing(Base):
     price_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     price_currency: Mapped[str | None] = mapped_column(String, nullable=True)
     location: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     raw_json_path: Mapped[str] = mapped_column(String)
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -51,7 +55,7 @@ class Image(Base):
     sha256: Mapped[str] = mapped_column(String, unique=True, index=True)
     width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     height: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    downloaded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    downloaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     listing: Mapped[Listing] = relationship(back_populates="images")
 

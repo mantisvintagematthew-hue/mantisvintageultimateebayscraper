@@ -22,10 +22,21 @@ pip install -e .[ocr]
 
 Set `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` in `.env`.
 
+## Readiness checks
+
+Run preflight checks before hands-on testing:
+
+```bash
+vtc doctor
+```
+
+This verifies data directory setup, database connectivity, and eBay credential presence.
+
 ## CLI commands
 
 ```bash
 vtc collect --query "vintage single stitch t shirt" --limit 200
+vtc collect --query "vintage single stitch t shirt" --limit 200 --enrich-details true
 vtc fetch-images --since-hours 24
 vtc pick-images --since-hours 24
 vtc extract --since-hours 24
@@ -42,6 +53,20 @@ vtc collect --fixture tests/fixtures/ebay_search.json --limit 200
 ```
 
 This is useful in CI/offline testing and for local iteration on pipeline stages after collection.
+
+## Direct API test-user flow
+
+Use this flow for live end-to-end testing with real eBay API credentials:
+
+```bash
+vtc doctor
+vtc collect --query "vintage single stitch t shirt" --limit 100 --enrich-details true
+vtc fetch-images --since-hours 48
+vtc pick-images --since-hours 48
+vtc extract --since-hours 48
+vtc date --since-hours 48
+vtc export --format jsonl --out exports/listings.jsonl
+```
 
 ## Database schema
 Implemented tables:
@@ -72,7 +97,10 @@ Includes:
 - declared date extraction tests
 - date resolver tests
 - image ranker score tests
+- offline collect fixture tests
+- collect enrichment behavior tests
 
 ## Notes
 - EasyOCR is used for easier containerization (no system tesseract dependency).
 - Image rankers are heuristic v1 implementations and set `needs_review` when confidence is low.
+- `collect` retries transient eBay API failures (429/5xx) with short exponential backoff.

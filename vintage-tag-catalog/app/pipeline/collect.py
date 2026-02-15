@@ -10,7 +10,14 @@ from app.ebay.browse import EbayBrowseClient
 MAX_EBAY_PAGE = 200
 
 
-def collect_search(repo: Repo, browse: EbayBrowseClient, query: str, limit: int, data_dir: Path) -> int:
+def collect_search(
+    repo: Repo,
+    browse: EbayBrowseClient,
+    query: str,
+    limit: int,
+    data_dir: Path,
+    enrich_details: bool = True,
+) -> int:
     """Collect listings from eBay browse API using paginated fetches."""
     raw_dir = data_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
@@ -23,11 +30,17 @@ def collect_search(repo: Repo, browse: EbayBrowseClient, query: str, limit: int,
         result = browse.search(query=query, limit=page_size, offset=offset)
         if not result.items:
             break
-        for item in result.items:
-            item_id = item["itemId"]
+        for summary in result.items:
+            listing_payload = summary
+            if enrich_details:
+                try:
+                    listing_payload = browse.get_item(summary["itemId"]).item
+                except Exception:
+                    listing_payload = summary
+            item_id = listing_payload["itemId"]
             raw_path = raw_dir / f"{item_id}.json"
-            raw_path.write_text(json.dumps(item, indent=2), encoding="utf-8")
-            repo.upsert_listing(item, str(raw_path))
+            raw_path.write_text(json.dumps(listing_payload, indent=2), encoding="utf-8")
+            repo.upsert_listing(listing_payload, str(raw_path))
             count += 1
             remaining -= 1
             if remaining <= 0:
