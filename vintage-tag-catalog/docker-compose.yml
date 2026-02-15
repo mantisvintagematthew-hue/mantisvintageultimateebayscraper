@@ -1,7 +1,14 @@
-version: '3.8'
 services:
   vtc:
     build: .
     volumes:
       - ./:/app
     command: ["--help"]
+
+  vtc-ui:
+    build: .
+    volumes:
+      - ./:/app
+    command: ["ui", "--host", "0.0.0.0", "--port", "8080"]
+    ports:
+      - "8080:8080"

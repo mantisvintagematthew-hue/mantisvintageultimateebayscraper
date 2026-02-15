@@ -18,10 +18,18 @@ cd vintage-tag-catalog
 cp .env.example .env
 make setup
 # optional OCR model support
-pip install -e .[ocr]
+make setup-ocr
 ```
 
+Windows shell note:
+- **PowerShell**: `Copy-Item .env.example .env`
+- **Command Prompt (cmd.exe)**: `copy .env.example .env`
+
 Set `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` in `.env` for API mode.
+
+### Dev container
+
+This repo includes `.devcontainer/devcontainer.json` for reproducible setup. It installs `.[dev,ocr]` automatically so `pytest` and OCR-backed extraction can run immediately inside the container.
 
 ## Collection modes
 
@@ -70,6 +78,22 @@ Open `http://127.0.0.1:8080` and use the **Mode** dropdown to toggle API/Web col
 Use the **Dark mode** toggle in the top-right to switch themes (preference is saved locally).
 You can also set optional listing date bounds (`listed_after`, `listed_before`) in the UI for API collection runs.
 
+### Docker UI launch (Windows-friendly)
+
+Use the dedicated compose service so port 8080 is published to your host:
+
+```bash
+docker compose up vtc-ui
+```
+
+Then open `http://localhost:8080`.
+
+If you only need one-off CLI commands, keep using:
+
+```bash
+docker compose run --rm vtc --help
+```
+
 ## Easy launch (double-click)
 
 - macOS: double-click `Launch_VTC_UI.command`
@@ -89,6 +113,22 @@ vtc pick-images --since-hours 24
 vtc date --since-hours 24
 vtc metrics --out exports/metrics.json
 vtc qa-sample --sample-size 30 --out exports/qa_sample.jsonl
+```
+
+## Ready-for-testing checklist
+
+Run this once after cloning:
+
+```bash
+make setup
+make test
+vtc doctor --mode all
+```
+
+Then run one end-to-end offline lane:
+
+```bash
+vtc run-all --mode web --query "vintage single stitch t shirt" --limit 25 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
 ```
 
 If your network blocks direct web requests (403/proxy), use fixture-backed web mode for local pipeline QA:

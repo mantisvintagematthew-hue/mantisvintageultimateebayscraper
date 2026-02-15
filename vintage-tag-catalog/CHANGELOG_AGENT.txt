@@ -64,3 +64,12 @@
 - Added tests for date-window fixture filtering and web-mode rejection of date filters.
 
 - Added UI dark mode toggle with localStorage persistence and system dark-theme fallback.
+2026-02-15 (testing-readiness stabilization)
+- Switched to `opencv-python-headless` to remove local libGL runtime dependency and improve out-of-the-box testability.
+- Added `.devcontainer/devcontainer.json` with automatic `.[dev,ocr]` install for reproducible container startup.
+- Added `make setup-ocr` and documented a concise ready-for-testing checklist in README.
+2026-02-15 (docker/windows setup correction)
+- Added a dedicated `vtc-ui` service to docker-compose with `8080:8080` port mapping for reliable `docker compose up vtc-ui` startup.
+- Removed obsolete top-level compose `version` key to eliminate v2 warning noise.
+- Updated README with Windows shell-specific `.env` copy commands (PowerShell vs cmd.exe).
+- Documented the Docker UI launch path that publishes localhost:8080 correctly.
