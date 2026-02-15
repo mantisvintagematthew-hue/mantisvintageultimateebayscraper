@@ -29,6 +29,7 @@ class Listing(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     ebay_item_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    source_mode: Mapped[str] = mapped_column(String, default="api")
     url: Mapped[str] = mapped_column(String)
     title: Mapped[str] = mapped_column(String)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -43,6 +44,21 @@ class Listing(Base):
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
 
     images: Mapped[list[Image]] = relationship(back_populates="listing")
+
+
+class CollectRun(Base):
+    __tablename__ = "collect_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    mode: Mapped[str] = mapped_column(String)
+    query: Mapped[str] = mapped_column(String)
+    limit: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String, default="started")
+    collected_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
 class Image(Base):

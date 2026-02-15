@@ -13,7 +13,7 @@ class FakeBrowseClient:
         self.search_calls = 0
         self.detail_calls = 0
 
-    def search(self, query: str, limit: int = 200, offset: int = 0):
+    def search(self, query: str, limit: int = 200, offset: int = 0, filter_expr: str | None = None):
         self.search_calls += 1
         if offset > 0:
             return type("R", (), {"items": [], "raw": {}})()

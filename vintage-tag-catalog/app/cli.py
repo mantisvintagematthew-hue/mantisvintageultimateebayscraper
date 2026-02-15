@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from datetime import datetime, timezone
 
 import typer
+import uvicorn
 from sqlalchemy import func, select
 
 from app.config import get_settings
@@ -14,11 +16,12 @@ from app.db.schema import DateInference, DateResolution, Extraction, Image, List
 from app.ebay.auth import EbayAuthClient
 from app.ebay.browse import EbayBrowseClient
 from app.observability import configure_logging, start_run_id
-from app.pipeline.collect import collect_from_fixture, collect_search
+from app.pipeline.collect import CollectionOrchestrator
 from app.pipeline.download_images import fetch_images
 from app.pipeline.extract_pipeline import export_jsonl, process_listing
 from app.pipeline.metrics import aggregate_db_metrics, write_run_metrics
 from app.pipeline.select_images import pick_images
+from app.web.scrape import EbayWebCollector
 
 
 app = typer.Typer(help="Vintage Tag Catalog CLI")
@@ -33,9 +36,12 @@ def init_db() -> None:
 
 
 @app.command("doctor")
-def doctor() -> None:
-    """Basic readiness checks for local test users before running pipeline."""
+def doctor(mode: str = typer.Option("all", help="Check scope: all | api | web")) -> None:
     settings = get_settings()
+    mode = mode.lower()
+    if mode not in {"all", "api", "web"}:
+        raise typer.BadParameter("mode must be one of: all, api, web")
+
     checks: list[tuple[str, bool, str]] = []
     checks.append(("data_dir_exists", settings.data_dir.exists(), str(settings.data_dir)))
     try:
@@ -46,8 +52,18 @@ def doctor() -> None:
     except Exception as exc:
         checks.append(("database_connectivity", False, str(exc)))
 
-    has_creds = bool(settings.ebay_client_id and settings.ebay_client_secret)
-    checks.append(("ebay_credentials_present", has_creds, "set EBAY_CLIENT_ID/EBAY_CLIENT_SECRET"))
+    if mode in {"all", "api"}:
+        has_creds = bool(settings.ebay_client_id and settings.ebay_client_secret)
+        checks.append(("api_credentials_present", has_creds, "set EBAY_CLIENT_ID/EBAY_CLIENT_SECRET"))
+
+    if mode in {"all", "web"}:
+        try:
+            health = EbayWebCollector().check_health()
+            checks.append(("web_robots_ok", health["robots_ok"], health.get("detail", "")))
+            checks.append(("web_reachability_ok", health["reachability_ok"], health.get("detail", "")))
+            checks.append(("web_selectors_ok", health["selectors_ok"], health.get("detail", "")))
+        except Exception as exc:
+            checks.append(("web_health_check", False, str(exc)))
 
     failures = [c for c in checks if not c[1]]
     for name, ok, detail in checks:
@@ -62,27 +78,70 @@ def doctor() -> None:
 def collect(
     query: str = typer.Option("vintage single stitch t shirt", help="Search query"),
     limit: int = typer.Option(200, help="Max listings to collect"),
+    mode: str = typer.Option("api", help="Collection mode: api | web"),
     fixture: Path | None = typer.Option(None, exists=True, dir_okay=False, help="Offline fixture JSON path"),
+    web_fixture_html: Path | None = typer.Option(None, exists=True, dir_okay=False, help="Offline HTML fixture for web mode"),
     enrich_details: bool = typer.Option(True, help="Fetch detailed item payloads via Browse item endpoint"),
+    listed_after: str | None = typer.Option(None, help="Optional listing lower bound (ISO date/datetime, e.g. 2024-01-01)"),
+    listed_before: str | None = typer.Option(None, help="Optional listing upper bound (ISO date/datetime, e.g. 2024-01-31)"),
 ) -> None:
     run_id = start_run_id()
+    mode = mode.lower()
+    if mode not in {"api", "web"}:
+        raise typer.BadParameter("mode must be one of: api, web")
+    if mode == "web" and not (25 <= limit <= 50):
+        raise typer.BadParameter("web mode supports small batches only: limit must be 25-50")
+    if mode == "web" and (listed_after or listed_before):
+        raise typer.BadParameter("listing date filters are currently supported in API/fixture mode only")
+
+    parsed_listed_after = _parse_user_datetime(listed_after, option_name="listed-after")
+    parsed_listed_before = _parse_user_datetime(listed_before, option_name="listed-before")
+    if parsed_listed_after and parsed_listed_before and parsed_listed_after > parsed_listed_before:
+        raise typer.BadParameter("listed-after must be less than or equal to listed-before")
+
     settings = get_settings()
     sf = make_session_factory(settings.database_url)
     with sf() as s:
         repo = Repo(s)
-        if fixture:
-            count = collect_from_fixture(repo, fixture, settings.data_dir, limit=limit)
-            source = f"fixture={fixture}"
-        else:
-            if not settings.ebay_client_id or not settings.ebay_client_secret:
-                raise typer.BadParameter("Missing eBay credentials. Set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET.")
-            auth = EbayAuthClient(settings.ebay_client_id, settings.ebay_client_secret)
-            browse = EbayBrowseClient(auth.token(), settings.ebay_marketplace)
-            count = collect_search(repo, browse, query, limit, settings.data_dir, enrich_details=enrich_details)
-            source = "ebay_api"
-        s.commit()
-    logger.info("collect complete source=%s count=%s", source, count)
-    write_run_metrics(settings.data_dir, run_id, {"stage": "collect", "source": source, "count": count})
+        repo.create_collect_run(run_id=run_id, mode=mode if not fixture else "fixture", query=query, limit=limit)
+        orchestrator = CollectionOrchestrator(repo, settings.data_dir)
+        try:
+            if fixture:
+                count = orchestrator.collect_from_fixture(
+                    fixture,
+                    limit=limit,
+                    listed_after=parsed_listed_after,
+                    listed_before=parsed_listed_before,
+                )
+                source = f"fixture={fixture}"
+            elif mode == "api":
+                if not settings.ebay_client_id or not settings.ebay_client_secret:
+                    raise typer.BadParameter("Missing eBay credentials. Set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET.")
+                auth = EbayAuthClient(settings.ebay_client_id, settings.ebay_client_secret)
+                browse = EbayBrowseClient(auth.token(), settings.ebay_marketplace)
+                count = orchestrator.collect_api(
+                    browse,
+                    query,
+                    limit,
+                    enrich_details=enrich_details,
+                    listed_after=parsed_listed_after,
+                    listed_before=parsed_listed_before,
+                )
+                source = "ebay_api"
+            else:
+                count = orchestrator.collect_web(query=query, limit=limit, html_fixture=web_fixture_html)
+                source = "ebay_web"
+            repo.finish_collect_run(run_id=run_id, status="completed", collected_count=count)
+        except Exception as exc:
+            repo.finish_collect_run(run_id=run_id, status="failed", collected_count=0, error_message=str(exc))
+            s.commit()
+            typer.echo(f"Collection failed: {exc}")
+            raise typer.Exit(code=1)
+        finally:
+            s.commit()
+
+    logger.info("collect complete source=%s count=%s mode=%s", source, count, mode)
+    write_run_metrics(settings.data_dir, run_id, {"stage": "collect", "source": source, "mode": mode, "count": count})
     typer.echo(f"Collected {count} listings from {source} (run_id={run_id})")
 
 
@@ -138,11 +197,23 @@ def run_all(
     query: str = typer.Option("vintage single stitch t shirt", help="Search query"),
     limit: int = typer.Option(100, help="Max listings to collect"),
     since_hours: int = typer.Option(72, help="Window for downstream stages"),
+    mode: str = typer.Option("api", help="Collection mode: api | web"),
     fixture: Path | None = typer.Option(None, exists=True, dir_okay=False, help="Offline fixture JSON path"),
+    web_fixture_html: Path | None = typer.Option(None, exists=True, dir_okay=False, help="Offline HTML fixture for web mode"),
+    listed_after: str | None = typer.Option(None, help="Optional listing lower bound (ISO date/datetime)"),
+    listed_before: str | None = typer.Option(None, help="Optional listing upper bound (ISO date/datetime)"),
 ) -> None:
-    """Convenience command for direct tester end-to-end runs."""
     run_id = start_run_id()
-    collect(query=query, limit=limit, fixture=fixture, enrich_details=True)
+    collect(
+        query=query,
+        limit=limit,
+        mode=mode,
+        fixture=fixture,
+        web_fixture_html=web_fixture_html,
+        enrich_details=True,
+        listed_after=listed_after,
+        listed_before=listed_before,
+    )
     fetch_images_cmd(since_hours=since_hours)
     pick_images_cmd(since_hours=since_hours)
     date_cmd(since_hours=since_hours)
@@ -151,7 +222,7 @@ def run_all(
     sf = make_session_factory(settings.database_url)
     with sf() as s:
         summary = aggregate_db_metrics(s)
-    write_run_metrics(settings.data_dir, run_id, {"stage": "run-all", **summary})
+    write_run_metrics(settings.data_dir, run_id, {"stage": "run-all", "mode": mode, **summary})
     typer.echo(f"Run-all complete (run_id={run_id})")
 
 
@@ -170,7 +241,6 @@ def metrics_cmd(out: str | None = None) -> None:
 
 @app.command("qa-sample")
 def qa_sample(sample_size: int = 30, out: str = "exports/qa_sample.jsonl") -> None:
-    """Generate a manual QA sample for reviewers (tag/hero/date validation)."""
     settings = get_settings()
     sf = make_session_factory(settings.database_url)
     out_path = Path(out)
@@ -195,6 +265,7 @@ def qa_sample(sample_size: int = 30, out: str = "exports/qa_sample.jsonl") -> No
                 item = {
                     "listing_id": listing.id,
                     "ebay_item_id": listing.ebay_item_id,
+                    "source_mode": listing.source_mode,
                     "title": listing.title,
                     "needs_review": listing.needs_review,
                     "tag_image_path": tag_img.local_path if tag_img else None,
@@ -208,6 +279,11 @@ def qa_sample(sample_size: int = 30, out: str = "exports/qa_sample.jsonl") -> No
     typer.echo(f"Wrote QA sample: {out_path}")
 
 
+@app.command("ui")
+def ui_cmd(host: str = "127.0.0.1", port: int = 8080) -> None:
+    uvicorn.run("app.ui.server:app", host=host, port=port, reload=False)
+
+
 @app.command("export")
 def export_cmd(format: str = "jsonl", out: str = "exports/listings.jsonl") -> None:
     if format != "jsonl":
@@ -219,11 +295,23 @@ def export_cmd(format: str = "jsonl", out: str = "exports/listings.jsonl") -> No
     typer.echo(f"Exported {count} rows to {out}")
 
 
-
 def _obj_public(obj):
     if obj is None:
         return None
     return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+
+
+def _parse_user_datetime(raw: str | None, option_name: str) -> datetime | None:
+    if not raw:
+        return None
+    val = raw.strip()
+    try:
+        if val.endswith("Z"):
+            return datetime.fromisoformat(val.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(val)
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        raise typer.BadParameter(f"invalid --{option_name} datetime: {raw}") from None
 
 
 if __name__ == "__main__":

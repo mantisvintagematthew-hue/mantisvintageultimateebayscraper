@@ -12,10 +12,19 @@ class EbayBrowseClient:
         self.token = token
         self.marketplace = marketplace
 
-    def search(self, query: str, limit: int = 200, offset: int = 0) -> EbaySearchResult:
+    def search(
+        self,
+        query: str,
+        limit: int = 200,
+        offset: int = 0,
+        filter_expr: str | None = None,
+    ) -> EbaySearchResult:
+        params = {"q": query, "limit": min(limit, 200), "offset": offset}
+        if filter_expr:
+            params["filter"] = filter_expr
         payload = self._request_json(
             "https://api.ebay.com/buy/browse/v1/item_summary/search",
-            params={"q": query, "limit": min(limit, 200), "offset": offset},
+            params=params,
         )
         return EbaySearchResult(items=payload.get("itemSummaries", []), raw=payload)
 

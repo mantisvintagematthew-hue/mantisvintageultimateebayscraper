@@ -35,3 +35,32 @@
 - Expanded brand/region normalization and inference signals for broader real-world vintage listing coverage.
 - Added realism regression fixtures and expanded unit tests for normalization/inference/resolver edge cases.
 - Updated README and Makefile with live 500-listing validation protocol and QA rubric thresholds.
+2026-02-15 (dual mode + UI toggle pass)
+- Added dual collection modes: API mode (primary) and Web mode (secondary small-batch scraper).
+- Added web scraper collector with HTML parsing, user-agent rotation, and retry/backoff.
+- Added `source_mode` on listings and new `collect_runs` table for run tracking.
+- Added frontend FastAPI UI with API/Web mode toggle and validation for web batch size.
+- Added easy launch scripts (`Launch_VTC_UI.command`, `launch_vtc_ui.sh`) for double-click startup.
+- Updated CLI to support `--mode` and run orchestration across both modes.
+- Added web parser tests and fixture coverage.
+2026-02-15 (phase 4/5 parity + gates)
+- Extended doctor checks with mode scope (`all|api|web`) and added web robots/reachability/selector health checks.
+- Added web fixture-html lane for collector and run-all to support scraper-mode testing without live network access.
+- Added web detail parser and fixture for parser-level regression tests.
+- Added mode validation tests (web cap rules) and integration tests for API-fixture and web-fixture runs.
+- Updated README and Makefile with scraper-first testing flow and acceptance criteria checklist.
+2026-02-15 (phase 4/5 implementation complete)
+- Added doctor mode scopes (`all|api|web`) including web robots/reachability/selector checks.
+- Added `--web-fixture-html` support for collect/run-all to validate scraper-mode flows offline.
+- Added web detail parser and fixture-based parser tests for listing/detail HTML.
+- Added mode validation tests and integration tests for API fixture lane and web fixture lane.
+- Confirmed acceptance flow for API fixture and web fixture run-all + metrics + qa-sample.
+
+2026-02-15 (listing-date collection filters)
+- Added optional `--listed-after` / `--listed-before` filters to collect and run-all commands.
+- Wired API Browse searches to include an itemCreationDate filter expression when date bounds are provided.
+- Added post-fetch date-window filtering for API and fixture collection payloads.
+- Added UI fields for optional listing date bounds in API mode with validation messaging.
+- Added tests for date-window fixture filtering and web-mode rejection of date filters.
+
+- Added UI dark mode toggle with localStorage persistence and system dark-theme fallback.

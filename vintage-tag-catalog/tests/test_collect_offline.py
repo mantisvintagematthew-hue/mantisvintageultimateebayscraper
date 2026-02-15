@@ -28,6 +28,7 @@ def test_collect_from_fixture(tmp_path: Path):
     assert count == 1
     assert len(rows) == 1
     assert rows[0].ebay_item_id == "v1|1234567890|0"
+    assert rows[0].source_mode == "fixture"
 
 
 def test_collect_from_fixture_honors_limit(tmp_path: Path):

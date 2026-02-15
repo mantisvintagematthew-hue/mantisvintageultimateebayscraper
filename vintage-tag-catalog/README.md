@@ -6,7 +6,8 @@ Local-first pipeline for collecting eBay vintage t-shirt listings, downloading/l
 - Python 3.11+
 - SQLite + SQLAlchemy
 - Typer CLI
-- httpx for eBay API
+- FastAPI + Jinja2 (simple operator UI)
+- httpx for eBay API and web requests
 - OpenCV + Pillow for image scoring
 - EasyOCR for tag OCR
 
@@ -20,138 +21,110 @@ make setup
 pip install -e .[ocr]
 ```
 
-Set `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` in `.env`.
+Set `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` in `.env` for API mode.
+
+## Collection modes
+
+The app supports two collection modes:
+
+1. **API mode** (`--mode api`) — primary mode, uses official eBay API.
+2. **Web mode** (`--mode web`) — secondary mode, scrapes eBay search pages in **small batches (25–50)**.
 
 ## Readiness checks
 
-Run preflight checks before hands-on testing:
-
 ```bash
-vtc doctor
+vtc doctor --mode all
+vtc doctor --mode api
+vtc doctor --mode web
 ```
 
-This verifies data directory setup, database connectivity, and eBay credential presence.
+- API doctor checks credentials + DB/data setup.
+- Web doctor checks robots reachability and selector health.
 
 ## CLI commands
 
 ```bash
-vtc collect --query "vintage single stitch t shirt" --limit 200
-vtc collect --query "vintage single stitch t shirt" --limit 200 --enrich-details true
+vtc collect --mode api --query "vintage single stitch t shirt" --limit 200
+vtc collect --mode api --query "vintage single stitch t shirt" --limit 200 --listed-after 2024-01-01 --listed-before 2024-01-31
+vtc collect --mode web --query "vintage single stitch t shirt" --limit 25
+vtc collect --mode web --query "vintage single stitch t shirt" --limit 25 --web-fixture-html tests/fixtures/web/ebay_search_sample.html
+vtc collect --fixture tests/fixtures/ebay_search.json --limit 200
+
+vtc run-all --mode api --query "vintage single stitch t shirt" --limit 100 --listed-after 2024-01-01 --since-hours 72
+vtc run-all --mode web --query "vintage single stitch t shirt" --limit 25 --since-hours 72
+vtc run-all --mode web --query "vintage single stitch t shirt" --limit 25 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
+
+vtc metrics --out exports/metrics.json
+vtc qa-sample --sample-size 30 --out exports/qa_sample.jsonl
+```
+
+## Frontend UI with mode toggle
+
+Run UI:
+
+```bash
+vtc ui --host 127.0.0.1 --port 8080
+```
+
+Open `http://127.0.0.1:8080` and use the **Mode** dropdown to toggle API/Web collection modes.
+Use the **Dark mode** toggle in the top-right to switch themes (preference is saved locally).
+You can also set optional listing date bounds (`listed_after`, `listed_before`) in the UI for API collection runs.
+
+## Easy launch (double-click)
+
+- macOS: double-click `Launch_VTC_UI.command`
+- Linux: double-click `launch_vtc_ui.sh` (or run `./launch_vtc_ui.sh`)
+
+Both launch scripts start the UI at `http://127.0.0.1:8080`.
+
+## Human-testing (scraper-first) recommendation
+
+If you do not have API keys yet, use this first-round flow:
+
+```bash
+vtc doctor --mode web
+vtc collect --mode web --query "vintage single stitch t shirt" --limit 25
 vtc fetch-images --since-hours 24
 vtc pick-images --since-hours 24
-vtc extract --since-hours 24
 vtc date --since-hours 24
-vtc export --format jsonl --out exports/listings.jsonl
-vtc run-all --query "vintage single stitch t shirt" --limit 100 --since-hours 72
 vtc metrics --out exports/metrics.json
 vtc qa-sample --sample-size 30 --out exports/qa_sample.jsonl
 ```
 
-## Offline fixture workflow
-
-You can run collection without eBay credentials by using a fixture JSON:
+If your network blocks direct web requests (403/proxy), use fixture-backed web mode for local pipeline QA:
 
 ```bash
-vtc collect --fixture tests/fixtures/ebay_search.json --limit 200
-```
-
-This is useful in CI/offline testing and for local iteration on pipeline stages after collection.
-
-## Direct API test-user flow
-
-Use this flow for live end-to-end testing with real eBay API credentials:
-
-```bash
-vtc doctor
-vtc collect --query "vintage single stitch t shirt" --limit 100 --enrich-details true
-vtc fetch-images --since-hours 48
-vtc pick-images --since-hours 48
-vtc extract --since-hours 48
-vtc date --since-hours 48
-vtc export --format jsonl --out exports/listings.jsonl
-vtc run-all --query "vintage single stitch t shirt" --limit 100 --since-hours 72
-vtc metrics --out exports/metrics.json
-vtc qa-sample --sample-size 30 --out exports/qa_sample.jsonl
+vtc run-all --mode web --query "vintage single stitch t shirt" --limit 25 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
 ```
 
 ## Database schema
 Implemented tables:
-- `listings`
+- `listings` (includes `source_mode`)
+- `collect_runs`
 - `images`
 - `listing_images`
 - `extractions`
 - `date_inference`
 - `date_resolution`
 
-## Docker
+## Acceptance criteria checklist
 
-```bash
-docker build -t vtc .
-docker run --rm -it --env-file .env -v $(pwd)/data:/app/data vtc --help
-```
-
-## Devcontainer
-`.devcontainer/devcontainer.json` installs Python dependencies automatically using `pip install -e .[dev]`.
-
-## Tests
-
-```bash
-make test
-```
-
-Includes:
-- declared date extraction tests
-- date resolver tests
-- image ranker score tests
-- offline collect fixture tests
-- collect enrichment behavior tests
+- API mode behavior remains consistent with previous implementation.
+- Web mode runs successfully for 25–50 listings per run.
+- UI mode toggle routes collection through selected mode.
+- Metrics and QA sampling continue to work post-collection in both modes.
 
 ## Notes
 - EasyOCR is used for easier containerization (no system tesseract dependency).
-- Image rankers are heuristic v1 implementations and set `needs_review` when confidence is low.
-- `collect` retries transient eBay API failures (429/5xx) with short exponential backoff.
+- Web mode is intentionally small-batch to reduce anti-bot risk and stabilize first-round human testing.
 
+### Date-bound collection filters
 
-## Production readiness checklist
+To avoid re-processing older inventory, API and fixture collection support optional bounds:
 
-Before inviting external testers:
+- `--listed-after` (inclusive lower bound)
+- `--listed-before` (inclusive upper bound)
 
-- Run `vtc doctor` and resolve all failures.
-- Validate one end-to-end fixture run (`vtc run-all --fixture ...`) and confirm export output shape.
-- Validate one end-to-end live API run with real eBay creds and inspect at least 20 listings manually for image/tag/date quality.
-- Confirm infrastructure quota/rate limits for expected test volume.
-- Confirm conflict/review queue handling for low-confidence listings (`needs_review=true`).
+Use ISO values like `2024-01-01` or `2024-01-01T00:00:00Z`.
 
-
-## Human-testing rubric
-
-For each `qa_sample` record, reviewers should mark:
-
-- **Tag pick quality**: good / acceptable / bad.
-- **Hero pick quality**: good / acceptable / bad.
-- **Declared date evidence quality**: strong / medium / weak.
-- **Inferred date plausibility**: yes / no.
-- **Canonical output correctness**: yes / no.
-- **Needs review flag correctness**: yes / no.
-
-Target thresholds before broad rollout:
-
-- Tag quality (good+acceptable) >= 85%
-- Hero quality (good+acceptable) >= 90%
-- Canonical correctness >= 85%
-
-## Live API validation protocol
-
-Run at least one 500-listing pass with real credentials:
-
-```bash
-vtc doctor
-vtc collect --query "vintage single stitch t shirt" --limit 500 --enrich-details true
-vtc fetch-images --since-hours 72
-vtc pick-images --since-hours 72
-vtc date --since-hours 72
-vtc metrics --out exports/metrics.json
-vtc qa-sample --sample-size 50 --out exports/qa_sample.jsonl
-```
-
-Inspect `exports/metrics.json` for conflict/needs_review rates and manually review the QA sample output.
+> Note: web scraping mode does not currently expose reliable listing timestamps from search HTML, so date bounds are rejected in web mode.
