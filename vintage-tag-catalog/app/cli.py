@@ -89,8 +89,8 @@ def collect(
     mode = mode.lower()
     if mode not in {"api", "web"}:
         raise typer.BadParameter("mode must be one of: api, web")
-    if mode == "web" and not (25 <= limit <= 50):
-        raise typer.BadParameter("web mode supports small batches only: limit must be 25-50")
+    if mode == "web" and not (1 <= limit <= 50):
+        raise typer.BadParameter("web mode supports small batches only: limit must be 1-50")
     if mode == "web" and (listed_after or listed_before):
         raise typer.BadParameter("listing date filters are currently supported in API/fixture mode only")
 

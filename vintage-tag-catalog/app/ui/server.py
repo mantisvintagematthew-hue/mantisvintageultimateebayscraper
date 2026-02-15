@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+import httpx
 
 from app.config import get_settings
 from app.db.schema import make_session_factory
@@ -42,10 +43,10 @@ def collect_from_ui(
     listed_before: str = Form(""),
 ):
     mode = mode.lower()
-    if mode == "web" and not (25 <= limit <= 50):
+    if mode == "web" and not (1 <= limit <= 50):
         return TEMPLATES.TemplateResponse(
             "index.html",
-            {"request": request, "message": "Web mode requires limit between 25 and 50."},
+            {"request": request, "message": "Web mode requires limit between 1 and 50."},
             status_code=400,
         )
     if mode == "web" and (listed_after.strip() or listed_before.strip()):
@@ -74,31 +75,52 @@ def collect_from_ui(
     run_id = start_run_id()
     settings = get_settings()
     sf = make_session_factory(settings.database_url)
-    with sf() as s:
-        repo = Repo(s)
-        repo.create_collect_run(run_id=run_id, mode=mode, query=query, limit=limit)
-        orchestrator = CollectionOrchestrator(repo, settings.data_dir)
-        if mode == "api":
-            if not settings.ebay_client_id or not settings.ebay_client_secret:
-                msg = "Missing EBAY credentials for API mode."
-                repo.finish_collect_run(run_id, status="failed", collected_count=0, error_message=msg)
-                s.commit()
-                return TEMPLATES.TemplateResponse("index.html", {"request": request, "message": msg}, status_code=400)
-            auth = EbayAuthClient(settings.ebay_client_id, settings.ebay_client_secret)
-            browse = EbayBrowseClient(auth.token(), settings.ebay_marketplace)
-            count = orchestrator.collect_api(
-                browse,
-                query,
-                limit,
-                enrich_details=enrich_details,
-                listed_after=parsed_after,
-                listed_before=parsed_before,
-            )
-        else:
-            html_fixture = Path(web_fixture_html) if web_fixture_html else None
-            count = orchestrator.collect_web(query, limit, html_fixture=html_fixture)
-        repo.finish_collect_run(run_id=run_id, status="completed", collected_count=count)
-        s.commit()
+    try:
+        with sf() as s:
+            repo = Repo(s)
+            repo.create_collect_run(run_id=run_id, mode=mode, query=query, limit=limit)
+            orchestrator = CollectionOrchestrator(repo, settings.data_dir)
+            if mode == "api":
+                if not settings.ebay_client_id or not settings.ebay_client_secret:
+                    msg = "Missing EBAY credentials for API mode."
+                    repo.finish_collect_run(run_id, status="failed", collected_count=0, error_message=msg)
+                    s.commit()
+                    return TEMPLATES.TemplateResponse("index.html", {"request": request, "message": msg}, status_code=400)
+                auth = EbayAuthClient(settings.ebay_client_id, settings.ebay_client_secret)
+                browse = EbayBrowseClient(auth.token(), settings.ebay_marketplace)
+                count = orchestrator.collect_api(
+                    browse,
+                    query,
+                    limit,
+                    enrich_details=enrich_details,
+                    listed_after=parsed_after,
+                    listed_before=parsed_before,
+                )
+            else:
+                html_fixture = Path(web_fixture_html) if web_fixture_html else None
+                count = orchestrator.collect_web(query, limit, html_fixture=html_fixture)
+            repo.finish_collect_run(run_id=run_id, status="completed", collected_count=count)
+            s.commit()
+    except httpx.HTTPStatusError as exc:
+        msg = (
+            f"Web collection failed with HTTP {exc.response.status_code} from eBay. "
+            "This is usually temporary blocking/rate limiting; retry with a lower limit or use web fixture HTML for offline testing."
+        )
+        with sf() as s:
+            repo = Repo(s)
+            repo.finish_collect_run(run_id=run_id, status="failed", collected_count=0, error_message=str(exc))
+            s.commit()
+        return TEMPLATES.TemplateResponse("index.html", {"request": request, "message": msg}, status_code=503)
+    except Exception as exc:
+        with sf() as s:
+            repo = Repo(s)
+            repo.finish_collect_run(run_id=run_id, status="failed", collected_count=0, error_message=str(exc))
+            s.commit()
+        return TEMPLATES.TemplateResponse(
+            "index.html",
+            {"request": request, "message": f"Collection failed: {exc}"},
+            status_code=500,
+        )
 
     msg = f"Collection complete: {count} listings collected in {mode} mode (run_id={run_id})."
     return TEMPLATES.TemplateResponse("index.html", {"request": request, "message": msg})

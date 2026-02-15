@@ -36,7 +36,7 @@ This repo includes `.devcontainer/devcontainer.json` for reproducible setup. It 
 The app supports two collection modes:
 
 1. **API mode** (`--mode api`) — primary mode, uses official eBay API.
-2. **Web mode** (`--mode web`) — secondary mode, scrapes eBay search pages in **small batches (25–50)**.
+2. **Web mode** (`--mode web`) — secondary mode, scrapes eBay search pages in **small batches (1–50)**.
 
 ## Readiness checks
 
@@ -54,13 +54,13 @@ vtc doctor --mode web
 ```bash
 vtc collect --mode api --query "vintage single stitch t shirt" --limit 200
 vtc collect --mode api --query "vintage single stitch t shirt" --limit 200 --listed-after 2024-01-01 --listed-before 2024-01-31
-vtc collect --mode web --query "vintage single stitch t shirt" --limit 25
-vtc collect --mode web --query "vintage single stitch t shirt" --limit 25 --web-fixture-html tests/fixtures/web/ebay_search_sample.html
+vtc collect --mode web --query "vintage single stitch t shirt" --limit 1
+vtc collect --mode web --query "vintage single stitch t shirt" --limit 1 --web-fixture-html tests/fixtures/web/ebay_search_sample.html
 vtc collect --fixture tests/fixtures/ebay_search.json --limit 200
 
 vtc run-all --mode api --query "vintage single stitch t shirt" --limit 100 --listed-after 2024-01-01 --since-hours 72
-vtc run-all --mode web --query "vintage single stitch t shirt" --limit 25 --since-hours 72
-vtc run-all --mode web --query "vintage single stitch t shirt" --limit 25 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
+vtc run-all --mode web --query "vintage single stitch t shirt" --limit 1 --since-hours 72
+vtc run-all --mode web --query "vintage single stitch t shirt" --limit 1 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
 
 vtc metrics --out exports/metrics.json
 vtc qa-sample --sample-size 30 --out exports/qa_sample.jsonl
@@ -107,7 +107,7 @@ If you do not have API keys yet, use this first-round flow:
 
 ```bash
 vtc doctor --mode web
-vtc collect --mode web --query "vintage single stitch t shirt" --limit 25
+vtc collect --mode web --query "vintage single stitch t shirt" --limit 1
 vtc fetch-images --since-hours 24
 vtc pick-images --since-hours 24
 vtc date --since-hours 24
@@ -128,13 +128,13 @@ vtc doctor --mode all
 Then run one end-to-end offline lane:
 
 ```bash
-vtc run-all --mode web --query "vintage single stitch t shirt" --limit 25 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
+vtc run-all --mode web --query "vintage single stitch t shirt" --limit 1 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
 ```
 
 If your network blocks direct web requests (403/proxy), use fixture-backed web mode for local pipeline QA:
 
 ```bash
-vtc run-all --mode web --query "vintage single stitch t shirt" --limit 25 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
+vtc run-all --mode web --query "vintage single stitch t shirt" --limit 1 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
 ```
 
 ## Database schema
@@ -150,7 +150,7 @@ Implemented tables:
 ## Acceptance criteria checklist
 
 - API mode behavior remains consistent with previous implementation.
-- Web mode runs successfully for 25–50 listings per run.
+- Web mode runs successfully for 1–50 listings per run.
 - UI mode toggle routes collection through selected mode.
 - Metrics and QA sampling continue to work post-collection in both modes.
 

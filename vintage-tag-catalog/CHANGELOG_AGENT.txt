@@ -73,3 +73,9 @@
 - Removed obsolete top-level compose `version` key to eliminate v2 warning noise.
 - Updated README with Windows shell-specific `.env` copy commands (PowerShell vs cmd.exe).
 - Documented the Docker UI launch path that publishes localhost:8080 correctly.
+
+2026-02-15 (web mode resiliency + lower batch floor)
+- Lowered web-mode minimum listing batch from 25 to 1 in CLI/UI validation and docs.
+- Updated web collector limit message to reflect 1-50 bounds.
+- Added UI error handling for upstream eBay HTTP failures (e.g., 503) so users receive a clear message instead of a raw 500 trace.
+- Added tests for web limit=1 behavior and UI handling of web 503 responses.

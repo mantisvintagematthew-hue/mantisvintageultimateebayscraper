@@ -42,7 +42,7 @@ def test_web_mode_fixture_lane_integration(tmp_path: Path):
             "--query",
             "vintage tee",
             "--limit",
-            "25",
+            "1",
             "--web-fixture-html",
             str(html_fixture),
         ],

@@ -32,7 +32,7 @@ def test_run_all_web_mode_with_fixture_html(tmp_path: Path):
             "--query",
             "vintage tee",
             "--limit",
-            "25",
+            "1",
             "--web-fixture-html",
             str(html_fixture),
             "--since-hours",
@@ -58,10 +58,34 @@ def test_collect_web_mode_rejects_listing_date_filters(tmp_path: Path):
             "--query",
             "vintage tee",
             "--limit",
-            "25",
+            "1",
             "--listed-after",
             "2024-01-01",
         ],
         env=env,
     )
     assert res.exit_code != 0
+
+
+def test_collect_web_mode_accepts_limit_one(tmp_path: Path):
+    env = {
+        "DATABASE_URL": f"sqlite:///{tmp_path/'vtc.db'}",
+        "VTC_DATA_DIR": str(tmp_path / "data"),
+    }
+    html_fixture = Path(__file__).parent / "fixtures" / "web" / "ebay_search_sample.html"
+    res = runner.invoke(
+        app,
+        [
+            "collect",
+            "--mode",
+            "web",
+            "--query",
+            "vintage tee",
+            "--limit",
+            "1",
+            "--web-fixture-html",
+            str(html_fixture),
+        ],
+        env=env,
+    )
+    assert res.exit_code == 0

@@ -24,3 +24,10 @@ def test_web_collector_enforces_small_batch_limit():
     collector = EbayWebCollector()
     with pytest.raises(ValueError):
         collector.search(query="vintage tee", limit=80, data_dir=Path("."))
+
+
+def test_web_collector_allows_single_listing_batch(tmp_path: Path):
+    fixture = Path(__file__).parent / "fixtures" / "web" / "ebay_search_sample.html"
+    collector = EbayWebCollector()
+    rows = collector.search_from_html_fixture(fixture, limit=1, data_dir=tmp_path)
+    assert len(rows) == 1

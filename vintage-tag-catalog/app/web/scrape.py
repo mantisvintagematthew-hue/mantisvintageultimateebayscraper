@@ -37,7 +37,7 @@ class EbayWebCollector:
         if limit < 1:
             return []
         if limit > 50:
-            raise ValueError("Web scraping mode supports batches of 25-50 listings only")
+            raise ValueError("Web scraping mode supports batches of 1-50 listings only")
 
         url = f"https://www.ebay.com/sch/i.html?_nkw={quote_plus(query)}"
         html = self._request_with_backoff(url)
@@ -54,7 +54,7 @@ class EbayWebCollector:
         if limit < 1:
             return []
         if limit > 50:
-            raise ValueError("Web scraping mode supports batches of 25-50 listings only")
+            raise ValueError("Web scraping mode supports batches of 1-50 listings only")
         html = html_path.read_text(encoding="utf-8")
         items = parse_search_html(html)
         payloads = [item.__dict__ for item in items[:limit]]

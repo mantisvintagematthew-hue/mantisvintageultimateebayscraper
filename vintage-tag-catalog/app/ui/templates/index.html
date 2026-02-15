@@ -138,9 +138,9 @@
       const limit = document.getElementById('limit');
       mode.addEventListener('change', () => {
         if (mode.value === 'web') {
-          limit.min = 25;
+          limit.min = 1;
           limit.max = 50;
-          if (Number(limit.value) < 25 || Number(limit.value) > 50) limit.value = 25;
+          if (Number(limit.value) < 1 || Number(limit.value) > 50) limit.value = 1;
         } else {
           limit.min = 1;
           limit.max = 500;
