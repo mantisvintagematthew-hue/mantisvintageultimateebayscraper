@@ -18,3 +18,10 @@ def test_extract_decade_late_90s():
     out = extract_declared_date("late 90s rap tee", "")
     assert out.start_year == 1996
     assert out.end_year == 1999
+
+
+def test_extract_specifics_field_when_title_description_empty():
+    out = extract_declared_date("", "", "Era: Early 90s")
+    assert out.source == "specifics"
+    assert out.start_year == 1990
+    assert out.end_year == 1993

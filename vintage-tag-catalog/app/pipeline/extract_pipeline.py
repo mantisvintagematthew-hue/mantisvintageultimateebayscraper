@@ -21,7 +21,11 @@ REGIONS = {
 
 
 def process_listing(repo, listing: Listing) -> None:
-    declared = extract_declared_date(listing.title, listing.description)
+    raw_payload = _load_json(Path(listing.raw_json_path))
+    description = listing.description or raw_payload.get("description") or ""
+    specifics_text = _specifics_to_text(raw_payload)
+    declared = extract_declared_date(listing.title, description, specifics_text)
+
     tag_link = repo.session.scalar(
         select(ListingImage).where(ListingImage.listing_id == listing.id, ListingImage.role == "tag")
     )
@@ -39,7 +43,7 @@ def process_listing(repo, listing: Listing) -> None:
         if hero_img:
             single_stitch = detect_single_stitch(Path(hero_img.local_path))
 
-    combined_text = f"{listing.title or ''} {listing.description or ''} {tag_text}"
+    combined_text = f"{listing.title or ''} {description} {specifics_text} {tag_text}"
     brand = _extract_brand(combined_text)
     made_in = _extract_made_in(combined_text)
     region = _normalize_region(made_in)
@@ -94,6 +98,22 @@ def _normalize_region(made_in_raw: str | None) -> str | None:
         if k in lower:
             return v
     return None
+
+
+def _specifics_to_text(payload: dict) -> str:
+    parts: list[str] = []
+    for item in payload.get("localizedAspects", []) or []:
+        name = item.get("name") or ""
+        values = ", ".join(item.get("value", []) or [])
+        if name or values:
+            parts.append(f"{name}: {values}".strip())
+    return " | ".join(parts)
+
+
+def _load_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def export_jsonl(session, out_path: Path) -> int:

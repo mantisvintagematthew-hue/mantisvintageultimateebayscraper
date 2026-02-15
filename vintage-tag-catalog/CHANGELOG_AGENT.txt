@@ -9,3 +9,9 @@
 - Added unit tests + fixtures for date extraction, resolver, and image rankers.
 - Added Dockerfile, devcontainer config, docker-compose, Makefile, env example.
 - Added project README with setup and usage instructions.
+2026-02-15
+- Added paginated collect behavior to honor limits above single-page eBay response sizes.
+- Added offline fixture collection mode (`vtc collect --fixture ...`) for local/CI runs without API credentials.
+- Improved image URL extraction, URL dedupe, extension inference, and HTTP error handling in image downloads.
+- Updated extraction pipeline to parse listing specifics (`localizedAspects`) from raw JSON and feed them into declared date extraction.
+- Expanded tests with offline collection test and specifics-based declared-date parsing test.

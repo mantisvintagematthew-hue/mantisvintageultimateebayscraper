@@ -33,6 +33,16 @@ vtc date --since-hours 24
 vtc export --format jsonl --out exports/listings.jsonl
 ```
 
+## Offline fixture workflow
+
+You can run collection without eBay credentials by using a fixture JSON:
+
+```bash
+vtc collect --fixture tests/fixtures/ebay_search.json --limit 200
+```
+
+This is useful in CI/offline testing and for local iteration on pipeline stages after collection.
+
 ## Database schema
 Implemented tables:
 - `listings`
