@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Vintage Tag Catalog</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 2rem; max-width: 720px; }
+      .msg { background: #eef7ff; border: 1px solid #b6dcff; padding: .75rem; margin-bottom: 1rem; }
+      label { display:block; margin-top: .75rem; }
+      input, select { width: 100%; padding: .5rem; }
+      button { margin-top: 1rem; padding: .65rem 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Vintage Tag Catalog</h1>
+    <p>Collection mode toggle:</p>
+
+    {% if message %}<div class="msg">{{ message }}</div>{% endif %}
+
+    <form method="post" action="/collect">
+      <label>Query</label>
+      <input name="query" value="vintage single stitch t shirt" />
+
+      <label>Mode</label>
+      <select id="mode" name="mode">
+        <option value="api">API mode (main)</option>
+        <option value="web">Web scraping mode (small batch)</option>
+      </select>
+
+      <label>Limit</label>
+      <input id="limit" type="number" name="limit" value="50" min="1" max="500" />
+
+      <label>
+        <input type="checkbox" name="enrich_details" checked /> Enrich details (API mode only)
+      </label>
+
+      <label>Web fixture HTML path (optional)</label>
+      <input name="web_fixture_html" placeholder="tests/fixtures/web/ebay_search_sample.html" />
+
+      <label>Listed after (optional, API mode)</label>
+      <input name="listed_after" placeholder="2024-01-01 or 2024-01-01T00:00:00Z" />
+
+      <label>Listed before (optional, API mode)</label>
+      <input name="listed_before" placeholder="2024-01-31 or 2024-01-31T23:59:59Z" />
+
+      <button type="submit">Run Collect</button>
+    </form>
+
+    <script>
+      const mode = document.getElementById('mode');
+      const limit = document.getElementById('limit');
+      mode.addEventListener('change', () => {
+        if (mode.value === 'web') {
+          limit.min = 25;
+          limit.max = 50;
+          if (Number(limit.value) < 25 || Number(limit.value) > 50) limit.value = 25;
+        } else {
+          limit.min = 1;
+          limit.max = 500;
+          if (Number(limit.value) < 1) limit.value = 50;
+        }
+      });
+    </script>
+  </body>
+</html>

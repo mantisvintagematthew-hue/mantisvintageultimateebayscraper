@@ -1,0 +1,14 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(slots=True)
+class EbaySearchResult:
+    items: list[dict]
+    raw: dict
+
+
+@dataclass(slots=True)
+class EbayItemDetailResult:
+    item: dict
