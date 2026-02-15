@@ -64,3 +64,7 @@
 - Added tests for date-window fixture filtering and web-mode rejection of date filters.
 
 - Added UI dark mode toggle with localStorage persistence and system dark-theme fallback.
+2026-02-15 (testing-readiness stabilization)
+- Switched to `opencv-python-headless` to remove local libGL runtime dependency and improve out-of-the-box testability.
+- Added `.devcontainer/devcontainer.json` with automatic `.[dev,ocr]` install for reproducible container startup.
+- Added `make setup-ocr` and documented a concise ready-for-testing checklist in README.

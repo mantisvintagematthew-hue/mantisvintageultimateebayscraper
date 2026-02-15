@@ -18,10 +18,14 @@ cd vintage-tag-catalog
 cp .env.example .env
 make setup
 # optional OCR model support
-pip install -e .[ocr]
+make setup-ocr
 ```
 
 Set `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` in `.env` for API mode.
+
+### Dev container
+
+This repo includes `.devcontainer/devcontainer.json` for reproducible setup. It installs `.[dev,ocr]` automatically so `pytest` and OCR-backed extraction can run immediately inside the container.
 
 ## Collection modes
 
@@ -89,6 +93,22 @@ vtc pick-images --since-hours 24
 vtc date --since-hours 24
 vtc metrics --out exports/metrics.json
 vtc qa-sample --sample-size 30 --out exports/qa_sample.jsonl
+```
+
+## Ready-for-testing checklist
+
+Run this once after cloning:
+
+```bash
+make setup
+make test
+vtc doctor --mode all
+```
+
+Then run one end-to-end offline lane:
+
+```bash
+vtc run-all --mode web --query "vintage single stitch t shirt" --limit 25 --web-fixture-html tests/fixtures/web/ebay_search_sample.html --since-hours 72
 ```
 
 If your network blocks direct web requests (403/proxy), use fixture-backed web mode for local pipeline QA:
