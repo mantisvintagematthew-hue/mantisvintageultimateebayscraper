@@ -133,12 +133,20 @@ def export_jsonl(session, out_path: Path) -> int:
                 "ebay_item_id": listing.ebay_item_id,
                 "title": listing.title,
                 "needs_review": listing.needs_review,
-                "extraction": extraction.__dict__ if extraction else None,
-                "inference": inferred.__dict__ if inferred else None,
-                "resolution": resolved.__dict__ if resolved else None,
+                "extraction": _model_to_public_dict(extraction),
+                "inference": _model_to_public_dict(inferred),
+                "resolution": _model_to_public_dict(resolved),
             }
-            for k in ["extraction", "inference", "resolution"]:
-                if record[k] and "_sa_instance_state" in record[k]:
-                    record[k].pop("_sa_instance_state")
             f.write(json.dumps(record) + "\n")
     return len(rows)
+
+
+def _model_to_public_dict(model_obj):
+    if model_obj is None:
+        return None
+    data = {}
+    for key, value in model_obj.__dict__.items():
+        if key.startswith("_"):
+            continue
+        data[key] = value
+    return data

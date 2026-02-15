@@ -12,3 +12,6 @@ run-collect:
 
 run-collect-offline:
 	vtc collect --fixture tests/fixtures/ebay_search.json --limit 50
+
+run-all:
+	vtc run-all --query "vintage single stitch t shirt" --limit 50 --since-hours 72

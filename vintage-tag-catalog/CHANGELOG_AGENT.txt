@@ -22,3 +22,9 @@
 - Switched schema/repo timestamp defaults to timezone-aware UTC helper to avoid deprecated naive utcnow usage.
 - Added tests for collect enrichment behavior with/without detail fetch.
 - Expanded README/Makefile with direct API test flow and doctor command.
+2026-02-15 (readiness iteration 2)
+- Added `vtc run-all` orchestration command for direct tester end-to-end runs.
+- Updated fixture collection to honor `--limit` for deterministic offline runs.
+- Tightened collect enrichment error handling to catch/log HTTP errors explicitly.
+- Improved export serialization to avoid leaking ORM private state internals.
+- Added fixture-limit test coverage and updated README/Makefile with run-all + readiness checklist.

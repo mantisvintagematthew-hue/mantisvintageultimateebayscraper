@@ -63,7 +63,7 @@ def collect(
     with sf() as s:
         repo = Repo(s)
         if fixture:
-            count = collect_from_fixture(repo, fixture, settings.data_dir)
+            count = collect_from_fixture(repo, fixture, settings.data_dir, limit=limit)
             source = f"fixture={fixture}"
         else:
             if not settings.ebay_client_id or not settings.ebay_client_secret:
@@ -115,6 +115,21 @@ def extract_cmd(since_hours: int = 24) -> None:
 def date_cmd(since_hours: int = 24) -> None:
     extract_cmd(since_hours=since_hours)
 
+
+
+
+@app.command("run-all")
+def run_all(
+    query: str = typer.Option("vintage single stitch t shirt", help="Search query"),
+    limit: int = typer.Option(100, help="Max listings to collect"),
+    since_hours: int = typer.Option(72, help="Window for downstream stages"),
+    fixture: Path | None = typer.Option(None, exists=True, dir_okay=False, help="Offline fixture JSON path"),
+) -> None:
+    """Convenience command for direct tester end-to-end runs."""
+    collect(query=query, limit=limit, fixture=fixture, enrich_details=True)
+    fetch_images_cmd(since_hours=since_hours)
+    pick_images_cmd(since_hours=since_hours)
+    date_cmd(since_hours=since_hours)
 
 @app.command("export")
 def export_cmd(format: str = "jsonl", out: str = "exports/listings.jsonl") -> None:

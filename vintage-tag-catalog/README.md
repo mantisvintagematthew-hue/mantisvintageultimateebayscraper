@@ -42,6 +42,7 @@ vtc pick-images --since-hours 24
 vtc extract --since-hours 24
 vtc date --since-hours 24
 vtc export --format jsonl --out exports/listings.jsonl
+vtc run-all --query "vintage single stitch t shirt" --limit 100 --since-hours 72
 ```
 
 ## Offline fixture workflow
@@ -66,6 +67,7 @@ vtc pick-images --since-hours 48
 vtc extract --since-hours 48
 vtc date --since-hours 48
 vtc export --format jsonl --out exports/listings.jsonl
+vtc run-all --query "vintage single stitch t shirt" --limit 100 --since-hours 72
 ```
 
 ## Database schema
@@ -104,3 +106,14 @@ Includes:
 - EasyOCR is used for easier containerization (no system tesseract dependency).
 - Image rankers are heuristic v1 implementations and set `needs_review` when confidence is low.
 - `collect` retries transient eBay API failures (429/5xx) with short exponential backoff.
+
+
+## Production readiness checklist
+
+Before inviting external testers:
+
+- Run `vtc doctor` and resolve all failures.
+- Validate one end-to-end fixture run (`vtc run-all --fixture ...`) and confirm export output shape.
+- Validate one end-to-end live API run with real eBay creds and inspect at least 20 listings manually for image/tag/date quality.
+- Confirm infrastructure quota/rate limits for expected test volume.
+- Confirm conflict/review queue handling for low-confidence listings (`needs_review=true`).
