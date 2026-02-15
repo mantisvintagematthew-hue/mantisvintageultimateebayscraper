@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Vintage Tag Catalog</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --text: #111827;
+        --muted: #4b5563;
+        --panel: #f9fafb;
+        --border: #d1d5db;
+        --input-bg: #ffffff;
+        --msg-bg: #eef7ff;
+        --msg-border: #b6dcff;
+      }
+
+      body.dark {
+        --bg: #0f172a;
+        --text: #e5e7eb;
+        --muted: #cbd5e1;
+        --panel: #111827;
+        --border: #374151;
+        --input-bg: #0b1220;
+        --msg-bg: #10233f;
+        --msg-border: #2a4b78;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body.auto {
+          --bg: #0f172a;
+          --text: #e5e7eb;
+          --muted: #cbd5e1;
+          --panel: #111827;
+          --border: #374151;
+          --input-bg: #0b1220;
+          --msg-bg: #10233f;
+          --msg-border: #2a4b78;
+        }
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        max-width: 720px;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        color: var(--muted);
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: .5rem;
+        padding: 1rem;
+      }
+
+      .msg {
+        background: var(--msg-bg);
+        border: 1px solid var(--msg-border);
+        padding: .75rem;
+        margin-bottom: 1rem;
+        border-radius: .375rem;
+      }
+
+      label { display:block; margin-top: .75rem; color: var(--muted); }
+      input, select {
+        width: 100%;
+        padding: .5rem;
+        border: 1px solid var(--border);
+        border-radius: .375rem;
+        background: var(--input-bg);
+        color: var(--text);
+      }
+
+      button {
+        margin-top: 1rem;
+        padding: .65rem 1rem;
+        border-radius: .375rem;
+        border: 1px solid var(--border);
+        background: var(--input-bg);
+        color: var(--text);
+        cursor: pointer;
+      }
+
+      #theme-toggle { margin-top: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <h1>Vintage Tag Catalog</h1>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙 Dark mode</button>
+    </div>
+    <p>Collection mode toggle:</p>
+
+    <div class="card">
+    {% if message %}<div class="msg">{{ message }}</div>{% endif %}
+
+    <form method="post" action="/collect">
+      <label>Query</label>
+      <input name="query" value="vintage single stitch t shirt" />
+
+      <label>Mode</label>
+      <select id="mode" name="mode">
+        <option value="api">API mode (main)</option>
+        <option value="web">Web scraping mode (small batch)</option>
+      </select>
+
+      <label>Limit</label>
+      <input id="limit" type="number" name="limit" value="50" min="1" max="500" />
+
+      <label>
+        <input type="checkbox" name="enrich_details" checked /> Enrich details (API mode only)
+      </label>
+
+      <label>Web fixture HTML path (optional)</label>
+      <input name="web_fixture_html" placeholder="tests/fixtures/web/ebay_search_sample.html" />
+
+      <label>Listed after (optional, API mode)</label>
+      <input name="listed_after" placeholder="2024-01-01 or 2024-01-01T00:00:00Z" />
+
+      <label>Listed before (optional, API mode)</label>
+      <input name="listed_before" placeholder="2024-01-31 or 2024-01-31T23:59:59Z" />
+
+      <button type="submit">Run Collect</button>
+    </form>
+    </div>
+
+    <script>
+      const mode = document.getElementById('mode');
+      const limit = document.getElementById('limit');
+      mode.addEventListener('change', () => {
+        if (mode.value === 'web') {
+          limit.min = 25;
+          limit.max = 50;
+          if (Number(limit.value) < 25 || Number(limit.value) > 50) limit.value = 25;
+        } else {
+          limit.min = 1;
+          limit.max = 500;
+          if (Number(limit.value) < 1) limit.value = 50;
+        }
+      });
+
+      const body = document.body;
+      const toggle = document.getElementById('theme-toggle');
+      const stored = localStorage.getItem('vtc-theme') || 'auto';
+
+      function applyTheme(theme) {
+        body.classList.remove('dark', 'auto');
+        if (theme === 'dark') {
+          body.classList.add('dark');
+          toggle.textContent = '☀️ Light mode';
+        } else {
+          body.classList.add('auto');
+          toggle.textContent = '🌙 Dark mode';
+        }
+      }
+
+      applyTheme(stored);
+      toggle.addEventListener('click', () => {
+        const next = body.classList.contains('dark') ? 'auto' : 'dark';
+        localStorage.setItem('vtc-theme', next);
+        applyTheme(next);
+      });
+    </script>
+  </body>
+</html>
