@@ -1,0 +1,7 @@
+version: '3.8'
+services:
+  vtc:
+    build: .
+    volumes:
+      - ./:/app
+    command: ["--help"]
