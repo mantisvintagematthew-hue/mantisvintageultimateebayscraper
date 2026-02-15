@@ -1,0 +1,25 @@
+{
+  "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=vintage+single+stitch+t+shirt&limit=2",
+  "total": 2,
+  "itemSummaries": [
+    {
+      "itemId": "v1|111111111111|0",
+      "title": "Vintage 1991 Band T Shirt Single Stitch Made in USA",
+      "itemWebUrl": "https://www.ebay.com/itm/111111111111",
+      "price": {"value": "199.99", "currency": "USD"},
+      "image": {"imageUrl": "https://i.ebayimg.com/images/g/abc/s-l1600.jpg"},
+      "additionalImages": [{"imageUrl": "https://i.ebayimg.com/images/g/def/s-l1600.jpg"}],
+      "itemLocation": {"country": "US"},
+      "seller": {"username": "vintage_store"}
+    },
+    {
+      "itemId": "v1|222222222222|0",
+      "title": "90s Rap Tee Screen Stars Best",
+      "itemWebUrl": "https://www.ebay.com/itm/222222222222",
+      "price": {"value": "129.99", "currency": "USD"},
+      "image": {"imageUrl": "https://i.ebayimg.com/images/g/ghi/s-l1600.jpg"},
+      "itemLocation": {"country": "US"},
+      "seller": {"username": "retrovault"}
+    }
+  ]
+}
