@@ -1,6 +1,9 @@
 setup:
 	python -m pip install -e .[dev]
 
+setup-ocr:
+	python -m pip install -e .[ocr]
+
 test:
 	pytest -q
 
